@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en"> // by chat gpt
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            overflow: hidden;
+            margin: 0;
+        }
+        .player {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .file-label {
+            margin-bottom: 10px;
+            cursor: pointer;
+            font-size: 1.2em;
+            color: #333;
+        }
+        .custom-audio-controls {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .play-button,
+        .repeat-button {
+            background: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .play-button:hover,
+        .repeat-button:hover {
+            background-color: #0056b3;
+        }
+        .repeat-button.active {
+            background-color: #0056b3;
+        }
+        .progress-bar {
+            width: 300px;
+            height: 10px;
+            background: #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            margin: 0 10px;
+        }
+        .progress-filled {
+            height: 100%;
+            background: #007BFF;
+            width: 0%;
+            transition: width 0.1s;
+        }
+        .time-info {
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            width: 320px;
+        }
+        .tooltip {
+            position: absolute;
+            background: #333;
+            color: #fff;
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+    </style>
+</head>
+<body>
+    <div class="player" id="player">
+        <h1>Music Player</h1>
+        <label class="file-label" for="fileInput">재생중인 음악</label>
+        <input type="file" id="fileInput" accept="audio/*" style="display:none;">
+        <div class="custom-audio-controls">
+            <button class="play-button" id="playPauseButton">▶️</button>
+            <button class="repeat-button" id="repeatButton">🔁</button>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-filled" id="progressFilled"></div>
+                <div class="tooltip" id="tooltip"></div>
+            </div>
+        </div>
+        <div class="time-info">
+            <span id="currentTime">0:00</span>
+            <span id="durationTime">0:00</span>
+        </div>
+        <audio id="audioPlayer"></audio>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', playMusic);
+        document.querySelector('.file-label').addEventListener('click', function() {
+            document.getElementById('fileInput').click();
+        });
+
+        function playMusic() {
+            var fileInput = document.getElementById('fileInput');
+            var audioPlayer = document.getElementById('audioPlayer');
+            var playPauseButton = document.getElementById('playPauseButton');
+            var repeatButton = document.getElementById('repeatButton');
+            var progressFilled = document.getElementById('progressFilled');
+            var progressBar = document.getElementById('progressBar');
+            var currentTimeSpan = document.getElementById('currentTime');
+            var durationTimeSpan = document.getElementById('durationTime');
+            var tooltip = document.getElementById('tooltip');
+            var files = fileInput.files;
+
+            if (files.length > 0) {
+                var file = files[0];
+                document.querySelector('.file-label').textContent = file.name;
+                var reader = new FileReader();
+
+                reader.onload = function(e) {
+                    audioPlayer.src = e.target.result;
+                    audioPlayer.play();
+                    audioPlayer.addEventListener('loadedmetadata', function() {
+                        durationTimeSpan.textContent = formatTime(audioPlayer.duration);
+                    });
+                    updatePlayPauseButton();
+                    updateProgressBar();
+                }
+
+                reader.readAsDataURL(file);
+            }
+        }
+
+        document.getElementById('playPauseButton').addEventListener('click', function() {
+            var audioPlayer = document.getElementById('audioPlayer');
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+            } else {
+                audioPlayer.pause();
+            }
+            updatePlayPauseButton();
+        });
+
+        document.getElementById('repeatButton').addEventListener('click', function() {
+            var audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.loop = !audioPlayer.loop;
+            this.classList.toggle('active');
+        });
+
+        document.getElementById('progressBar').addEventListener('click', function(e) {
+            var audioPlayer = document.getElementById('audioPlayer');
+            var newTime = (e.offsetX / this.offsetWidth) * audioPlayer.duration;
+            audioPlayer.currentTime = newTime;
+            updateProgressBar();
+        });
+
+        document.getElementById('progressBar').addEventListener('mousemove', function(e) {
+            var audioPlayer = document.getElementById('audioPlayer');
+            var tooltip = document.getElementById('tooltip');
+            var newTime = (e.offsetX / this.offsetWidth) * audioPlayer.duration;
+            tooltip.textContent = formatTime(newTime);
+            tooltip.style.left = e.offsetX + 'px';
+            tooltip.style.top = e.clientY - 30 + 'px';
+            tooltip.style.opacity = 1;
+        });
+
+        document.getElementById('progressBar').addEventListener('mouseleave', function() {
+            document.getElementById('tooltip').style.opacity = 0;
+        });
+
+        document.getElementById('audioPlayer').addEventListener('timeupdate', updateProgressBar);
+
+        function updatePlayPauseButton() {
+            var audioPlayer = document.getElementById('audioPlayer');
+            var playPauseButton = document.getElementById('playPauseButton');
+            if (audioPlayer.paused) {
+                playPauseButton.textContent = '▶️';
+            } else {
+                playPauseButton.textContent = '⏸️';
+            }
+        }
+
+        function updateProgressBar() {
+            var audioPlayer = document.getElementById('audioPlayer');
+            var progressFilled = document.getElementById('progressFilled');
+            var currentTimeSpan = document.getElementById('currentTime');
+            var progressPercent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+            progressFilled.style.width = progressPercent + '%';
+            currentTimeSpan.textContent = formatTime(audioPlayer.currentTime);
+        }
+
+        function formatTime(seconds) {
+            var minutes = Math.floor(seconds / 60);
+            var seconds = Math.floor(seconds % 60);
+            if (seconds < 10) {
+                seconds = '0' + seconds;
+            }
+            return minutes + ':' + seconds;
+        }
+
+        document.addEventListener('mousemove', function(e) {
+            var player = document.getElementById('player');
+            var x = e.clientX;
+            var y = e.clientY;
+            var windowWidth = window.innerWidth;
+            var windowHeight = window.innerHeight;
+
+            var rotateX = (y / windowHeight - 0.5) * 40; // 기울기 각도 계산
+            var rotateY = (x / windowWidth - 0.5) * -40; // 기울기 각도 계산
+
+            var shadowX = (x / windowWidth - 0.5) * 30; // 그림자 위치 계산
+            var shadowY = (y / windowHeight - 0.5) * 30; // 그림자 위치 계산
+
+            player.style.transform = 'rotateX(' + rotateX + 'deg) rotateY(' + rotateY + 'deg)';
+            player.style.boxShadow = shadowX + 'px ' + shadowY + 'px 20px rgba(0, 0, 0, 0.3)';
+        });
+    </script>
+</body>
+</html>
